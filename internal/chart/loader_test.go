@@ -23,8 +23,8 @@ func makeChart(t *testing.T, files map[string]string) string {
 
 func TestLoad_Basic(t *testing.T) {
 	dir := makeChart(t, map[string]string{
-		"Chart.yaml":  "name: mychart\nversion: 1.0.0\nappVersion: \"1.2.3\"\n",
-		"values.yaml": "replicaCount: 2\n",
+		"Chart.yaml":                "name: mychart\nversion: 1.0.0\nappVersion: \"1.2.3\"\n",
+		"values.yaml":               "replicaCount: 2\n",
 		"templates/deployment.yaml": "apiVersion: apps/v1\nkind: Deployment\n",
 	})
 
@@ -122,10 +122,10 @@ func TestLoad_MissingChartYaml(t *testing.T) {
 
 func TestLoad_TemplateExtensions(t *testing.T) {
 	dir := makeChart(t, map[string]string{
-		"Chart.yaml":              "name: mychart\nversion: 1.0.0\n",
-		"templates/deploy.yaml":   "kind: Deployment",
-		"templates/_helpers.tpl":  "{{- define \"helper\" -}}{{- end -}}",
-		"templates/notes.txt":     "this should be ignored",
+		"Chart.yaml":             "name: mychart\nversion: 1.0.0\n",
+		"templates/deploy.yaml":  "kind: Deployment",
+		"templates/_helpers.tpl": "{{- define \"helper\" -}}{{- end -}}",
+		"templates/notes.txt":    "this should be ignored",
 	})
 
 	c, err := Load(dir)

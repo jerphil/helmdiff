@@ -33,9 +33,9 @@ func captureStdout(t *testing.T, fn func()) string {
 
 func TestJSONRenderer_ValidJSON(t *testing.T) {
 	report := &diff.DiffReport{
-		ChartName:  "mychart",
-		OldVersion: "1.0.0",
-		NewVersion: "2.0.0",
+		ChartName:   "mychart",
+		OldVersion:  "1.0.0",
+		NewVersion:  "2.0.0",
 		GeneratedAt: time.Now(),
 		MetaChanges: []diff.Change{
 			{Path: "appVersion", Kind: diff.Changed, OldValue: "1.0", NewValue: "2.0", Risk: diff.RiskMedium},
