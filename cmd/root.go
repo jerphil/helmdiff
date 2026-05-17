@@ -1,0 +1,126 @@
+package cmd
+
+import (
+	"fmt"
+	"os"
+	"strings"
+
+	"github.com/jerphil/helmdiff/internal/ai"
+	"github.com/jerphil/helmdiff/internal/chart"
+	"github.com/jerphil/helmdiff/internal/diff"
+	"github.com/jerphil/helmdiff/internal/fetcher"
+	"github.com/jerphil/helmdiff/internal/renderer"
+	"github.com/spf13/cobra"
+)
+
+var (
+	flagRepo    string
+	flagOutput  string
+	flagAI      bool
+	flagAIModel string
+)
+
+// SetVersion is called by main with values injected via -ldflags at build time.
+func SetVersion(v, c, d string) {
+	rootCmd.Version = fmt.Sprintf("%s (commit %s, built %s)", v, c, d)
+}
+
+var rootCmd = &cobra.Command{
+	Use:   "helmdiff [chart] [old-version] [new-version]",
+	Short: "Diff two versions of a Helm chart before touching a cluster",
+	Long: `helmdiff pulls two versions of a Helm chart from any registry and
+produces a human-readable diff of templates, values, CRDs, and chart metadata.
+
+Examples:
+  helmdiff ingress-nginx 4.9.0 4.11.0
+  helmdiff cert-manager 1.13.0 1.15.0 --ai
+  helmdiff cert-manager 1.13.0 1.15.0 --ai --ai-model claude-sonnet-4-6
+  helmdiff my-chart 1.0.0 2.0.0 --repo https://my-org.github.io/charts
+  helmdiff oci://registry.k8s.io/ingress-nginx/ingress-nginx 4.9.0 4.11.0
+
+AI configuration (env vars):
+  HELMDIFF_AI_API_KEY   — API key (required when --ai is set)
+  HELMDIFF_AI_BASE_URL  — base URL of any OpenAI-compatible endpoint
+                 Claude:      https://api.anthropic.com/v1  (default)
+                 OpenAI:      https://api.openai.com/v1
+                 OpenRouter:  https://openrouter.ai/api/v1
+                 Ollama:      http://localhost:11434/v1
+  HELMDIFF_AI_MODEL     — model to use (default: claude-sonnet-4-6, overridden by --ai-model)`,
+	Args: cobra.ExactArgs(3),
+	RunE: run,
+}
+
+func Execute() error {
+	return rootCmd.Execute()
+}
+
+func init() {
+	rootCmd.Flags().StringVar(&flagRepo, "repo", "", "Helm repository URL (auto-detected for known charts)")
+	rootCmd.Flags().StringVarP(&flagOutput, "output", "o", "human", "Output format: human, json")
+	rootCmd.Flags().BoolVar(&flagAI, "ai", false, "Summarize breaking changes with AI (requires HELMDIFF_AI_API_KEY)")
+	rootCmd.Flags().StringVar(&flagAIModel, "ai-model", "", "Model override (e.g. gpt-4o, claude-sonnet-4-6, llama3)")
+}
+
+func run(cmd *cobra.Command, args []string) error {
+	chartName := args[0]
+	oldVersion := args[1]
+	newVersion := args[2]
+
+	if oldVersion == newVersion {
+		return fmt.Errorf("old and new versions are identical: %s", oldVersion)
+	}
+
+	f := fetcher.New(chartName, flagRepo)
+
+	fmt.Fprintf(os.Stderr, "Pulling %s %s...\n", chartName, oldVersion)
+	oldDir, cleanupOld, err := f.Pull(chartName, oldVersion)
+	if err != nil {
+		return fmt.Errorf("fetching old version: %w", err)
+	}
+	defer cleanupOld()
+
+	fmt.Fprintf(os.Stderr, "Pulling %s %s...\n", chartName, newVersion)
+	newDir, cleanupNew, err := f.Pull(chartName, newVersion)
+	if err != nil {
+		return fmt.Errorf("fetching new version: %w", err)
+	}
+	defer cleanupNew()
+
+	fmt.Fprintln(os.Stderr, "Comparing charts...")
+
+	oldChart, err := chart.Load(oldDir)
+	if err != nil {
+		return fmt.Errorf("loading old chart: %w", err)
+	}
+	newChart, err := chart.Load(newDir)
+	if err != nil {
+		return fmt.Errorf("loading new chart: %w", err)
+	}
+
+	report := diff.Run(oldChart, newChart)
+	if report.ChartName == "" {
+		report.ChartName = chartName
+	}
+
+	var r renderer.Renderer
+	switch strings.ToLower(flagOutput) {
+	case "json":
+		r = &renderer.JSONRenderer{}
+	case "human", "":
+		r = &renderer.HumanRenderer{}
+	default:
+		return fmt.Errorf("unknown output format %q (use: human, json)", flagOutput)
+	}
+
+	if err := r.Render(report); err != nil {
+		return err
+	}
+
+	if flagAI {
+		if err := ai.Summarize(report, flagAIModel); err != nil {
+			fmt.Fprintf(os.Stderr, "AI summary failed: %v\n", err)
+		}
+	}
+
+	return nil
+}
