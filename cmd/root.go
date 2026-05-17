@@ -30,22 +30,28 @@ var rootCmd = &cobra.Command{
 	Short: "Diff two versions of a Helm chart before touching a cluster",
 	Long: `helmdiff pulls two versions of a Helm chart from any registry and
 produces a human-readable diff of templates, values, CRDs, and chart metadata.
+Each change is classified with a risk level: CRITICAL, HIGH, MEDIUM, or LOW.
+
+Well-known charts (ingress-nginx, cert-manager, kube-prometheus-stack, argo-cd,
+and 40+ others) are resolved automatically — no --repo flag needed.
 
 Examples:
   helmdiff ingress-nginx 4.9.0 4.11.0
-  helmdiff cert-manager 1.13.0 1.15.0 --ai
-  helmdiff cert-manager 1.13.0 1.15.0 --ai --ai-model claude-sonnet-4-6
+  helmdiff cert-manager 1.13.0 1.15.0
   helmdiff my-chart 1.0.0 2.0.0 --repo https://my-org.github.io/charts
   helmdiff oci://registry.k8s.io/ingress-nginx/ingress-nginx 4.9.0 4.11.0
+  helmdiff ingress-nginx 4.9.0 4.11.0 -o json | jq '.resources[].changes[]'
+  helmdiff cert-manager 1.13.0 1.15.0 --ai
 
-AI configuration (env vars):
-  HELMDIFF_AI_API_KEY   — API key (required when --ai is set)
-  HELMDIFF_AI_BASE_URL  — base URL of any OpenAI-compatible endpoint
-                 Claude:      https://api.anthropic.com/v1  (default)
-                 OpenAI:      https://api.openai.com/v1
-                 OpenRouter:  https://openrouter.ai/api/v1
-                 Ollama:      http://localhost:11434/v1
-  HELMDIFF_AI_MODEL     — model to use (default: claude-sonnet-4-6, overridden by --ai-model)`,
+Environment variables:
+  HELMDIFF_AI_API_KEY    API key for the AI provider (required with --ai)
+  HELMDIFF_AI_BASE_URL   Base URL of any OpenAI-compatible endpoint
+                           Anthropic (default): https://api.anthropic.com/v1
+                           OpenAI:              https://api.openai.com/v1
+                           OpenRouter:          https://openrouter.ai/api/v1
+                           Ollama (local):      http://localhost:11434/v1
+  HELMDIFF_AI_MODEL      Model to use (default: claude-sonnet-4-6)
+                           Overridden by --ai-model if both are set`,
 	Args: cobra.ExactArgs(3),
 	RunE: run,
 }
