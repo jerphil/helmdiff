@@ -32,8 +32,8 @@ go.work.sum
 # .vscode/
 
 # Built binary
-helmchartdiff
-helmchartdiff.exe
+helmdiff
+helmdiff.exe
 
 # Claude Code local config
 .claude/
