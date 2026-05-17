@@ -18,6 +18,7 @@ var (
 	flagOutput  string
 	flagAI      bool
 	flagAIModel string
+	flagFailOn  string
 )
 
 // SetVersion is called by main with values injected via -ldflags at build time.
@@ -43,6 +44,7 @@ Examples:
   helmdiff oci://registry.k8s.io/ingress-nginx/ingress-nginx 4.9.0 4.11.0
   helmdiff ingress-nginx 4.9.0 4.11.0 -o json | jq '.resources[].changes[]'
   helmdiff cert-manager 1.13.0 1.15.0 --ai
+  helmdiff ingress-nginx 4.9.0 4.11.0 --fail-on high   # exit 1 if HIGH or CRITICAL changes found
 
 Environment variables:
   HELMDIFF_AI_API_KEY    API key for the AI provider (required with --ai)
@@ -66,6 +68,7 @@ func init() {
 	rootCmd.Flags().StringVarP(&flagOutput, "output", "o", "human", "Output format: human, json")
 	rootCmd.Flags().BoolVar(&flagAI, "ai", false, "Summarize breaking changes with AI (requires HELMDIFF_AI_API_KEY)")
 	rootCmd.Flags().StringVar(&flagAIModel, "ai-model", "", "Model override (e.g. gpt-4o, claude-sonnet-4-6, llama3)")
+	rootCmd.Flags().StringVar(&flagFailOn, "fail-on", "", "Exit with code 1 if changes at or above this risk level are found (low, medium, high, critical)")
 }
 
 func run(cmd *cobra.Command, args []string) error {
@@ -129,5 +132,30 @@ func run(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	if flagFailOn != "" {
+		threshold, err := parseRiskLevel(flagFailOn)
+		if err != nil {
+			return err
+		}
+		if report.MaxRisk() >= threshold {
+			return fmt.Errorf("changes at or above %s risk level found", strings.ToUpper(flagFailOn))
+		}
+	}
+
 	return nil
+}
+
+func parseRiskLevel(s string) (diff.RiskLevel, error) {
+	switch strings.ToLower(s) {
+	case "low":
+		return diff.RiskLow, nil
+	case "medium":
+		return diff.RiskMedium, nil
+	case "high":
+		return diff.RiskHigh, nil
+	case "critical":
+		return diff.RiskCritical, nil
+	default:
+		return diff.RiskLow, fmt.Errorf("unknown risk level %q (use: low, medium, high, critical)", s)
+	}
 }
