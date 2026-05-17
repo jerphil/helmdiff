@@ -2,6 +2,8 @@
 
 Diff any two Helm chart versions before touching a cluster — templates, values, CRDs, and metadata, with AI-powered breaking change analysis.
 
+![helmdiff demo](demo.gif)
+
 ```
 helmdiff ingress-nginx 4.9.0 4.11.0
 ```

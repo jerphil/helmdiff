@@ -12,8 +12,22 @@ import (
 	openai "github.com/sashabaranov/go-openai"
 )
 
-const defaultModel = "claude-sonnet-4-6"
 const defaultBaseURL = "https://api.anthropic.com/v1"
+
+// defaultModelForURL returns a sensible default model for the given base URL.
+// Returns an empty string if no default is known (user must set HELMDIFF_AI_MODEL).
+func defaultModelForURL(baseURL string) string {
+	switch {
+	case strings.Contains(baseURL, "anthropic.com"):
+		return "claude-sonnet-4-6"
+	case strings.Contains(baseURL, "openai.com"):
+		return "gpt-4o"
+	case strings.Contains(baseURL, "openrouter.ai"):
+		return "anthropic/claude-sonnet-4-5"
+	default:
+		return ""
+	}
+}
 
 const systemPrompt = `You are a Kubernetes and Helm expert. You will be given a structured diff between two versions of a Helm chart. Your job is to:
 
@@ -36,19 +50,23 @@ func Summarize(report *diff.DiffReport, modelOverride string) error {
 	}
 
 	baseURL := os.Getenv("HELMDIFF_AI_BASE_URL")
+	if baseURL == "" {
+		baseURL = defaultBaseURL
+	}
+
 	model := modelOverride
 	if model == "" {
 		model = os.Getenv("HELMDIFF_AI_MODEL")
 	}
 	if model == "" {
-		model = defaultModel
+		model = defaultModelForURL(baseURL)
+	}
+	if model == "" {
+		return fmt.Errorf("no default model for %q — set HELMDIFF_AI_MODEL or use --ai-model", baseURL)
 	}
 
 	cfg := openai.DefaultConfig(apiKey)
-	cfg.BaseURL = defaultBaseURL
-	if baseURL != "" {
-		cfg.BaseURL = baseURL
-	}
+	cfg.BaseURL = baseURL
 	client := openai.NewClientWithConfig(cfg)
 
 	req := openai.ChatCompletionRequest{

@@ -35,6 +35,9 @@ go.work.sum
 helmdiff
 helmdiff.exe
 
+# VHS tape files (demo.gif is intentionally tracked)
+*.tape
+
 # Claude Code local config
 .claude/
 
