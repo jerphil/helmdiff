@@ -65,6 +65,19 @@ changelog:
     - title: Other
       order: 999
 
+brews:
+  - name: helmdiff
+    homepage: "https://github.com/jerphil/helmdiff"
+    description: "Diff two Helm chart versions before touching your cluster"
+    license: "MIT"
+    repository:
+      owner: jerphil
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    directory: Formula
+    test: |
+      system "#{bin}/helmdiff", "--version"
+
 release:
   github:
     owner: jerphil
