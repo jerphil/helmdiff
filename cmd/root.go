@@ -45,6 +45,8 @@ Examples:
   helmdiff ingress-nginx 4.9.0 4.11.0 -o json | jq '.resources[].changes[]'
   helmdiff cert-manager 1.13.0 1.15.0 --ai
   helmdiff ingress-nginx 4.9.0 4.11.0 --fail-on high   # exit 1 if HIGH or CRITICAL changes found
+  helmdiff ./chart-v1.tgz ./chart-v2.tgz              # diff two local .tgz files
+  helmdiff ./old-chart/ ./new-chart/                   # diff two local directories
 
 Environment variables:
   HELMDIFF_AI_API_KEY    API key for the AI provider (required with --ai)
@@ -55,7 +57,7 @@ Environment variables:
                            Ollama (local):      http://localhost:11434/v1
   HELMDIFF_AI_MODEL      Model to use (default: claude-sonnet-4-6)
                            Overridden by --ai-model if both are set`,
-	Args: cobra.ExactArgs(3),
+	Args: cobra.RangeArgs(2, 3),
 	RunE: run,
 }
 
@@ -72,6 +74,11 @@ func init() {
 }
 
 func run(cmd *cobra.Command, args []string) error {
+	// Local mode: helmdiff ./old.tgz ./new.tgz
+	if len(args) == 2 {
+		return runLocal(args[0], args[1])
+	}
+
 	chartName := args[0]
 	oldVersion := args[1]
 	newVersion := args[2]
@@ -97,7 +104,10 @@ func run(cmd *cobra.Command, args []string) error {
 	defer cleanupNew()
 
 	fmt.Fprintln(os.Stderr, "Comparing charts...")
+	return diffAndRender(oldDir, newDir, chartName)
+}
 
+func diffAndRender(oldDir, newDir, chartName string) error {
 	oldChart, err := chart.Load(oldDir)
 	if err != nil {
 		return fmt.Errorf("loading old chart: %w", err)
@@ -143,6 +153,26 @@ func run(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+func runLocal(oldPath, newPath string) error {
+	lf := fetcher.New(oldPath, "")
+
+	fmt.Fprintf(os.Stderr, "Loading %s...\n", oldPath)
+	oldDir, cleanupOld, err := lf.Pull(oldPath, "")
+	if err != nil {
+		return fmt.Errorf("loading old chart: %w", err)
+	}
+	defer cleanupOld()
+
+	fmt.Fprintf(os.Stderr, "Loading %s...\n", newPath)
+	newDir, cleanupNew, err := fetcher.New(newPath, "").Pull(newPath, "")
+	if err != nil {
+		return fmt.Errorf("loading new chart: %w", err)
+	}
+	defer cleanupNew()
+
+	return diffAndRender(oldDir, newDir, oldPath)
 }
 
 func parseRiskLevel(s string) (diff.RiskLevel, error) {

@@ -72,6 +72,9 @@ helmdiff my-chart 1.0.0 2.0.0 --repo https://my-org.github.io/charts
 # OCI registry
 helmdiff oci://registry.k8s.io/ingress-nginx/ingress-nginx 4.9.0 4.11.0
 
+# Local .tgz files or directories — no network required
+helmdiff ./chart-v1.tgz ./chart-v2.tgz
+
 # JSON output (pipe-friendly)
 helmdiff ingress-nginx 4.9.0 4.11.0 -o json | jq '.resources[].changes[]'
 
