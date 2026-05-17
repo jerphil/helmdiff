@@ -61,6 +61,25 @@ type DiffReport struct {
 	GeneratedAt  time.Time
 }
 
+// MaxRisk returns the highest risk level found across all changes.
+func (r *DiffReport) MaxRisk() RiskLevel {
+	max := RiskLow
+	all := append(append(r.MetaChanges, r.ValueChanges...), r.CRDChanges...)
+	for _, c := range all {
+		if c.Risk > max {
+			max = c.Risk
+		}
+	}
+	for _, res := range r.Resources {
+		for _, c := range res.Changes {
+			if c.Risk > max {
+				max = c.Risk
+			}
+		}
+	}
+	return max
+}
+
 func (r *DiffReport) HighCount() int {
 	return r.countByRisk(RiskHigh, RiskCritical)
 }
