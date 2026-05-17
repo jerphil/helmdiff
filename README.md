@@ -42,7 +42,6 @@ go install github.com/jerphil/helmdiff@latest
 
 **Manual** — download a binary from the [releases page](https://github.com/jerphil/helmdiff/releases).
 
-> `helm` must be installed and on your `PATH` — helmdiff shells out to `helm pull`.
 
 ## Usage
 

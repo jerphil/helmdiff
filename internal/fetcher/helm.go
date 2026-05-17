@@ -3,9 +3,11 @@ package fetcher
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"strings"
+
+	"helm.sh/helm/v3/pkg/action"
+	"helm.sh/helm/v3/pkg/cli"
+	"helm.sh/helm/v3/pkg/registry"
 )
 
 type helmFetcher struct {
@@ -20,16 +22,28 @@ func (h *helmFetcher) Pull(chart, version string) (string, func(), error) {
 	}
 	cleanup := func() { _ = os.RemoveAll(dir) }
 
-	args := []string{"pull", chart, "--version", version, "--untar", "--untardir", dir}
-	if !h.oci && h.repoURL != "" {
-		args = append(args, "--repo", h.repoURL)
-	}
-
-	cmd := exec.Command("helm", args...)
-	out, err := cmd.CombinedOutput()
+	rc, err := registry.NewClient()
 	if err != nil {
 		cleanup()
-		return "", nil, fmt.Errorf("helm pull failed: %s\n%s", err, strings.TrimSpace(string(out)))
+		return "", nil, fmt.Errorf("creating registry client: %w", err)
+	}
+
+	cfg := new(action.Configuration)
+	cfg.RegistryClient = rc
+
+	pullClient := action.NewPullWithOpts(action.WithConfig(cfg))
+	pullClient.Settings = cli.New()
+	pullClient.Version = version
+	pullClient.Untar = true
+	pullClient.UntarDir = dir
+
+	if !h.oci && h.repoURL != "" {
+		pullClient.RepoURL = h.repoURL
+	}
+
+	if _, err := pullClient.Run(chart); err != nil {
+		cleanup()
+		return "", nil, fmt.Errorf("pulling chart: %w", err)
 	}
 
 	chartDir, err := findChartDir(dir)

@@ -34,6 +34,7 @@ Each change is classified with a risk level: CRITICAL, HIGH, MEDIUM, or LOW.
 
 Well-known charts (ingress-nginx, cert-manager, kube-prometheus-stack, argo-cd,
 and 40+ others) are resolved automatically — no --repo flag needed.
+No external dependencies required — helm does not need to be installed.
 
 Examples:
   helmdiff ingress-nginx 4.9.0 4.11.0
