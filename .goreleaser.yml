@@ -65,6 +65,20 @@ changelog:
     - title: Other
       order: 999
 
+nfpms:
+  - package_name: helmdiff
+    homepage: "https://github.com/jerphil/helmdiff"
+    description: "Diff two Helm chart versions before touching your cluster"
+    maintainer: "jerphil"
+    license: MIT
+    formats:
+      - deb
+      - rpm
+      - apk
+    contents:
+      - src: ./LICENSE
+        dst: /usr/share/doc/helmdiff/LICENSE
+
 brews:
   - name: helmdiff
     homepage: "https://github.com/jerphil/helmdiff"
